@@ -1,0 +1,59 @@
+# Deployment
+
+## Target Environment
+
+The demo will deploy to **East US**. Deploying Azure OpenAI requires an Azure subscription with access to Azure OpenAI and sufficient quota for the selected model. Confirm organizational approval and data-residency requirements before using any non-synthetic data.
+
+## Delivery Model
+
+Infrastructure is defined with Bicep. GitHub Actions authenticates to Azure with OpenID Connect (OIDC), avoiding long-lived Azure credentials in repository secrets.
+
+```mermaid
+flowchart LR
+    Push[Push to main] --> App[Application workflow]
+    App --> Test[Lint, test, build]
+    Test --> ACR[Publish image to ACR]
+    ACR --> ACA[Update Container App]
+    Infra[Infrastructure workflow] --> WhatIf[Bicep what-if]
+    WhatIf --> Deploy[Deploy Azure resources]
+```
+
+## Planned Resources
+
+The Bicep deployment will create or configure:
+
+- An Azure OpenAI account and a parameterized chat model deployment.
+- An Azure Container Apps environment and Container App.
+- An Azure Container Registry repository for the service image.
+- A user-assigned managed identity and the minimum required role assignments.
+- Key Vault, if a secret reference is required by the selected Azure OpenAI client configuration.
+- Log Analytics and Application Insights with content collection disabled for prompts and responses.
+
+## One-Time Bootstrap
+
+Before the first GitHub Actions deployment, an Azure administrator must:
+
+1. Select the Azure subscription and create a resource group in East US.
+2. Verify Azure OpenAI access, model availability, and quota in that subscription.
+3. Create a Microsoft Entra application registration or managed identity used by GitHub Actions.
+4. Add a federated credential that trusts the repository and approved branch/environment.
+5. Grant that identity the minimum roles needed to deploy the resource group and publish images.
+6. Configure the GitHub repository variables used by the workflows, such as subscription ID, tenant ID, resource group, and deployment region.
+
+Do not place Azure client secrets, Azure OpenAI keys, or model endpoint credentials in GitHub repository variables or browser-accessible application configuration.
+
+## Deployment Sequence
+
+1. Validate the Bicep templates with `az bicep build`.
+2. Run `az deployment group what-if` against the target resource group.
+3. Deploy infrastructure through the infrastructure workflow.
+4. Build, test, and publish the application container through the application workflow.
+5. Update the Container App to the published image.
+6. Validate managed-identity Azure OpenAI access from the deployed service.
+7. Verify telemetry excludes chat content and credentials.
+
+## Teardown
+
+The demo should be isolated in its own resource group. When it is no longer needed, remove that resource group to delete the Container App, registry, Azure OpenAI account, monitoring resources, and supporting identity resources deployed there.
+
+Review any shared resources before deletion. A shared registry, Key Vault, or user-assigned managed identity must not be removed until its other consumers are identified.

@@ -1,0 +1,46 @@
+{
+  "name": "ngcp-central-ai",
+  "version": "1.0.0",
+  "description": "NGCP Central AI is a planned one-page demonstration chatbot for financial monitoring, planning and engineering, and IT project monitoring. The demo uses a real Azure OpenAI model and synthetic business data. It does not connect to production systems, persist conversation content, or implement production authorization.",
+  "private": true,
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattuycoque/NGCP-Central-AI.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/mattuycoque/NGCP-Central-AI/issues"
+  },
+  "homepage": "https://github.com/mattuycoque/NGCP-Central-AI#readme",
+  "dependencies": {
+    "@azure/identity": "^4.13.1",
+    "@azure/openai": "^2.0.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/manrope": "^5.3.0",
+    "lucide-react": "^1.28.0",
+    "next": "^16.3.0",
+    "openai": "^7.4.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.0",
+    "typescript": "^6.0.3"
+  }
+}
