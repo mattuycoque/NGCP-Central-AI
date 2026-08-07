@@ -3,6 +3,8 @@ import "server-only";
 import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 import { AzureOpenAI } from "openai";
 
+import type { RetrievedDocument } from "@/lib/document-types";
+
 const scope = "https://cognitiveservices.azure.com/.default";
 
 function getConfiguration() {
@@ -17,7 +19,7 @@ function getConfiguration() {
   return { endpoint, deployment, apiVersion };
 }
 
-export async function createChatCompletion(systemPrompt: string, userMessage: string): Promise<string> {
+export async function createChatCompletion(systemPrompt: string, userMessage: string, sources: RetrievedDocument[]): Promise<string> {
   const configuration = getConfiguration();
 
   if (!configuration) {
@@ -33,14 +35,20 @@ export async function createChatCompletion(systemPrompt: string, userMessage: st
     apiVersion: configuration.apiVersion,
   });
 
+  const sourceContext = sources
+    .map((source) => `[${source.documentId}] ${source.title} (${source.sourceFile}, ${source.date})\n${source.content}`)
+    .join("\n\n");
   const completion = await client.chat.completions.create({
     model: configuration.deployment,
     messages: [
-      { role: "system", content: systemPrompt },
+      {
+        role: "system",
+        content: `${systemPrompt}\n\nUse only the authorized source excerpts below. Cite factual statements inline with the matching source ID in square brackets, such as [finance-capital-program-outlook]. When citing multiple sources on one line, separate citations with commas, for example: [source-a], [source-b]. Do not cite a source that is not provided.\n\nAuthorized source excerpts:\n${sourceContext}`,
+      },
       { role: "user", content: userMessage },
     ],
     temperature: 0.2,
-    max_tokens: 500,
+    max_tokens: 900,
   });
 
   return completion.choices[0]?.message.content?.trim() || "The model did not return a response.";

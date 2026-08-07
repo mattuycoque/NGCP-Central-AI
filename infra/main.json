@@ -1,0 +1,160 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.46.1.21595",
+      "templateHash": "12739709793735913461"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for the document retrieval resources."
+      }
+    },
+    "storageAccountName": {
+      "type": "string",
+      "defaultValue": "[format('ngcpdocs{0}', take(uniqueString(subscription().id, resourceGroup().id), 15))]",
+      "metadata": {
+        "description": "Globally unique Storage account name. Use lowercase letters and numbers only."
+      }
+    },
+    "searchServiceName": {
+      "type": "string",
+      "defaultValue": "[format('ngcpsearch{0}', take(uniqueString(subscription().id, resourceGroup().id), 15))]",
+      "metadata": {
+        "description": "Globally unique Azure AI Search service name."
+      }
+    },
+    "documentContainerName": {
+      "type": "string",
+      "defaultValue": "ngcp-demo-documents",
+      "metadata": {
+        "description": "Private Blob container holding the canonical demo documents."
+      }
+    },
+    "runtimePrincipalId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Object ID of the future runtime managed identity. Leave empty until Container Apps infrastructure exists."
+      }
+    }
+  },
+  "variables": {
+    "storageBlobDataReaderRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
+    "searchIndexDataReaderRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '1407120a-92aa-4202-b7e9-c0dff0e7d622')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "accessTier": "Hot",
+        "allowBlobPublicAccess": false,
+        "allowSharedKeyAccess": false,
+        "defaultToOAuthAuthentication": true,
+        "minimumTlsVersion": "TLS1_2",
+        "publicNetworkAccess": "Enabled",
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', parameters('storageAccountName'), 'default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', parameters('documentContainerName'))]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Search/searchServices",
+      "apiVersion": "2023-11-01",
+      "name": "[parameters('searchServiceName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "basic"
+      },
+      "properties": {
+        "disableLocalAuth": true,
+        "hostingMode": "default",
+        "partitionCount": 1,
+        "publicNetworkAccess": "enabled",
+        "replicaCount": 1
+      }
+    },
+    {
+      "condition": "[not(empty(parameters('runtimePrincipalId')))]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('runtimePrincipalId'), variables('storageBlobDataReaderRoleId'))]",
+      "properties": {
+        "principalId": "[parameters('runtimePrincipalId')]",
+        "principalType": "ServicePrincipal",
+        "roleDefinitionId": "[variables('storageBlobDataReaderRoleId')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+      ]
+    },
+    {
+      "condition": "[not(empty(parameters('runtimePrincipalId')))]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.Search/searchServices', parameters('searchServiceName'))]",
+      "name": "[guid(resourceId('Microsoft.Search/searchServices', parameters('searchServiceName')), parameters('runtimePrincipalId'), variables('searchIndexDataReaderRoleId'))]",
+      "properties": {
+        "principalId": "[parameters('runtimePrincipalId')]",
+        "principalType": "ServicePrincipal",
+        "roleDefinitionId": "[variables('searchIndexDataReaderRoleId')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Search/searchServices', parameters('searchServiceName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "storageAccountName": {
+      "type": "string",
+      "value": "[parameters('storageAccountName')]"
+    },
+    "storageAccountUrl": {
+      "type": "string",
+      "value": "[format('https://{0}.blob.{1}', parameters('storageAccountName'), environment().suffixes.storage)]"
+    },
+    "documentContainerName": {
+      "type": "string",
+      "value": "[parameters('documentContainerName')]"
+    },
+    "searchEndpoint": {
+      "type": "string",
+      "value": "[format('https://{0}.search.windows.net', parameters('searchServiceName'))]"
+    },
+    "searchServiceName": {
+      "type": "string",
+      "value": "[parameters('searchServiceName')]"
+    }
+  }
+}

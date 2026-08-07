@@ -18,12 +18,14 @@ The application will be a Next.js TypeScript service hosted in Azure Container A
 flowchart LR
     Browser[One-page chat UI] --> API[Next.js server API]
     API --> Policy[Demo access policy]
-    Policy --> Context[Role-filtered synthetic context]
+    Policy --> Search[Role-filtered Azure AI Search]
+    Blob[Private Blob source documents] --> Search
+    Search --> Context[Authorized cited context]
     API --> OpenAI[Azure OpenAI chat deployment]
     API --> Telemetry[Application Insights]
 ```
 
-The browser never receives an Azure OpenAI key, token, or unrestricted data set. The active demo role determines the context supplied to the chat model and the source indicators displayed in the interface.
+The browser never receives an Azure OpenAI key, token, Blob credential, Search credential, or unrestricted data set. The active demo role determines the Azure AI Search filter applied before context reaches the model. The server returns only citation metadata for source files that the model explicitly cited.
 
 ## Azure Resources
 
@@ -32,6 +34,8 @@ The deployment targets East US and will use the following resources:
 | Resource | Purpose |
 | --- | --- |
 | Azure OpenAI | Hosts a configurable chat model deployment. |
+| Azure Storage | Holds private canonical Markdown source documents. |
+| Azure AI Search Basic | Stores role-filtered keyword and vector search chunks. |
 | Azure Container Apps | Hosts the Next.js service and server-side API. |
 | Azure Container Registry | Stores the application container image. |
 | User-assigned managed identity | Gives the running application access to Azure services without embedded credentials. |
@@ -42,7 +46,9 @@ Model name, version, capacity, and deployment name are Bicep parameters. They mu
 
 ## Data Handling and Observability
 
-The demo keeps the open conversation only in browser memory. Refreshing the page clears the conversation. No database, blob container, or chat history service is part of this architecture.
+The demo keeps the open conversation only in browser memory. The chat refresh action clears the conversation, draft, errors, and displayed citations while retaining the selected simulated role. Blob Storage is a source-document store only; it does not contain conversation history.
+
+Synthetic records are prominently marked as fictional demo data. Public records are curator-reviewed snapshots containing a concise factual summary, canonical public URL, publication date, retrieval date, and attribution. The application does not crawl or mirror public websites.
 
 Application telemetry may report request duration, status code, model deployment name, and sanitized error categories. It must not record prompts, model responses, role-filtered context, authorization headers, access tokens, API keys, or other secrets.
 

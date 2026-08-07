@@ -1,7 +1,21 @@
 import { NextResponse } from "next/server";
 
 import { createChatCompletion } from "@/lib/azure-openai";
+import { retrieveDocuments } from "@/lib/azure-search";
+import { getCitedSources } from "@/lib/citations";
 import { buildRoleContext, getRole } from "@/lib/demo-access";
+
+function linkifyCitations(response: string, roleId: string, sourceById: Map<string, string>): string {
+  return response.replace(/\[([a-z0-9-]+)\]/gi, (fullMatch, sourceId: string) => {
+    const sourceFile = sourceById.get(sourceId);
+    if (!sourceFile) {
+      return fullMatch;
+    }
+
+    const href = `/api/source?documentId=${encodeURIComponent(sourceId)}&roleId=${encodeURIComponent(roleId)}`;
+    return `[${sourceFile}](${href})`;
+  });
+}
 
 export const runtime = "nodejs";
 
@@ -32,17 +46,50 @@ export async function POST(request: Request) {
   }
 
   try {
-    const response = await createChatCompletion(buildRoleContext(role), message);
-    return NextResponse.json({ response });
+    const sources = await retrieveDocuments(role, message);
+    if (sources.length === 0) {
+      return NextResponse.json({
+        response: "I could not find authorized demo evidence for that question.",
+        sources: [],
+      });
+    }
+
+    const response = await createChatCompletion(buildRoleContext(role), message, sources);
+    const citedSources = getCitedSources(response, sources);
+    if (citedSources.length === 0) {
+      return NextResponse.json({
+        response: "I could not find authorized demo evidence for that question.",
+        sources: [],
+      });
+    }
+    const linkifiedResponse = linkifyCitations(
+      response,
+      role.id,
+      new Map(citedSources.map((source) => [source.documentId, source.sourceFile])),
+    );
+
+    return NextResponse.json({
+      response: linkifiedResponse,
+      sources: citedSources.map((source) => ({
+        documentId: source.documentId,
+        sourceFile: source.sourceFile,
+        title: source.title,
+        domain: source.domain,
+        classification: source.classification,
+        provenance: source.provenance,
+        date: source.date,
+        sourceUrl: source.sourceUrl || undefined,
+      })),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    const status = message === "Azure OpenAI is not configured." ? 503 : 502;
+    const status = message === "Azure OpenAI is not configured." || message === "Document retrieval is not configured." ? 503 : 502;
 
     return NextResponse.json(
       {
         error:
           status === 503
-            ? "Chat is not configured yet. Add the Azure OpenAI endpoint and deployment to enable it."
+            ? "Chat is not configured yet. Add the Azure OpenAI and document retrieval settings to enable it."
             : "Chat is temporarily unavailable. Please try again.",
       },
       { status },

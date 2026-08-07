@@ -23,6 +23,8 @@ flowchart LR
 The Bicep deployment will create or configure:
 
 - An Azure OpenAI account and a parameterized chat model deployment.
+- A private Azure Storage account and Blob container for canonical source records.
+- An Azure AI Search Basic service for role-filtered vector and keyword retrieval.
 - An Azure Container Apps environment and Container App.
 - An Azure Container Registry repository for the service image.
 - A user-assigned managed identity and the minimum required role assignments.
@@ -51,6 +53,21 @@ Do not place Azure client secrets, Azure OpenAI keys, or model endpoint credenti
 5. Update the Container App to the published image.
 6. Validate managed-identity Azure OpenAI access from the deployed service.
 7. Verify telemetry excludes chat content and credentials.
+
+## Document Corpus Deployment
+
+`infra/main.bicep` provisions the private Blob container and Azure AI Search service. It disables anonymous Blob access and Storage shared-key access, and disables Search local authentication. The service is public-network reachable only to support local development; private endpoints should be enabled when the hosted path is introduced.
+
+After provisioning, a development identity with **Storage Blob Data Contributor** and **Search Index Data Contributor** runs:
+
+```bash
+npm run validate-documents
+npm run ingest-documents
+```
+
+The ingestion script uploads canonical Markdown files from `demo-documents/`, creates or updates the Search vector index, generates Azure OpenAI embeddings, and indexes role metadata. It is idempotent. The runtime identity is read-only and must not run ingestion.
+
+Every public-source record requires a canonical URL, date, attribution, and manual review. Do not configure a crawler or copy full external articles into the corpus.
 
 ## Teardown
 

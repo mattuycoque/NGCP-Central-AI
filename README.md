@@ -26,4 +26,16 @@ The demo is designed not to store conversations. Prompts, answers, and retrieved
 
 ## Status
 
-The responsive application foundation and protected Azure OpenAI API route are implemented. Azure infrastructure-as-code and continuous deployment are the next implementation phase.
+The responsive application, protected Azure OpenAI API route, document-grounding corpus, private Blob Storage, Azure AI Search Basic service, and model deployments are implemented for local demonstration. Container Apps infrastructure and continuous deployment remain the next phase.
+
+## Local Document-Grounded Demo
+
+Copy `.env.example` to `.env.local` and set the non-secret endpoint, deployment, Storage, and Search values. Sign in with `az login` using an identity that has the required Azure OpenAI, Blob, and Search data-plane roles, then run:
+
+```bash
+npm run validate-documents
+npm run ingest-documents
+npm run dev
+```
+
+The canonical source documents live in `demo-documents/`. Synthetic records are explicitly fictional. Public records must be curator-reviewed, attributed snapshots, never crawled or mirrored source pages. Each grounded response displays only the exact source files cited by the model.
