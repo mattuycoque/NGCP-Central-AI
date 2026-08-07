@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUp, Bot, ChevronDown, Database, LockKeyhole, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import Image from "next/image";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
@@ -110,7 +111,7 @@ export default function Home() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true"><Sparkles size={19} strokeWidth={2.4} /></span>
+          <span className="brand-mark" aria-hidden="true"><Image alt="NGCP" height={40} priority src="/ngcp_logo1.png" width={40} /></span>
           <div>
             <h1>NGCP Central AI</h1>
             <p>Operational intelligence workspace</p>
